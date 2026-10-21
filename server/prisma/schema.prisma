@@ -1,0 +1,527 @@
+// Grand Pearl Marquee ERP — Prisma schema (MySQL 8).
+// Money is Decimal(14,2); per-head rates Decimal(10,2); gstRate Decimal(5,2).
+// Soft-delete (deletedAt) + audit log on: bookings, bookingCharges, paymentSlips,
+// vouchers, accounts, eventCosts. Balances are NEVER stored — always derived.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  // Pre-created shadow DB so `migrate dev` needs privileges only on our own
+  // databases (no server-wide CREATE grant required).
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────── Enums ──
+
+enum Slot {
+  lunch
+  dinner
+}
+
+enum BookingStatus {
+  tentative
+  booked
+  paid
+  cancelled
+}
+
+enum ChargeType {
+  hall_charges
+  ac_heating
+  dj
+  decor
+  cold_drinks
+  mineral_water
+  other_charges
+}
+
+enum AccountType {
+  cash
+  bank
+  staff
+  asset
+  liability
+  supplier
+  income
+  expense
+  equity
+}
+
+enum PaymentMethod {
+  cash
+  bank_transfer
+  cheque
+  card
+}
+
+enum VoucherType {
+  RV // Receipt Voucher
+  EV // Expense Voucher
+  PV // Payment Voucher
+  JV // Journal Voucher
+}
+
+enum CostType {
+  vendor
+  inventory
+  misc
+}
+
+enum StockMovementType {
+  in
+  out
+  adjustment
+}
+
+enum AssetCondition {
+  new
+  good
+  fair
+  poor
+}
+
+enum AssetStatus {
+  available
+  in_use
+  retired
+}
+
+enum DecorStatus {
+  available
+  in_use
+  retired
+}
+
+// ─────────────────────────────────────────────────────────────── Auth / RBAC ──
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roles              UserRole[]
+  createdBookings    Booking[]       @relation("BookingCreatedBy")
+  confirmedBookings  Booking[]       @relation("BookingConfirmedBy")
+  paymentSlips       PaymentSlip[]   @relation("SlipCreatedBy")
+  vouchers           Voucher[]       @relation("VoucherCreatedBy")
+  eventCosts         EventCost[]     @relation("EventCostCreatedBy")
+  stockMovements     StockMovement[] @relation("StockMovementCreatedBy")
+  audits             Audit[]         @relation("AuditUser")
+
+  @@map("users")
+}
+
+model Role {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique // super_admin | admin | sales | accounts | inventory | decor
+  label     String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  users     UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// ─────────────────────────────────────────────────────────── Infrastructure ──
+
+/// Backs the gapless numbering service (SELECT … FOR UPDATE row lock).
+model NumberSequence {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // booking_no | slip_no | voucher_no:RV | customer_code | ...
+  next      Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("number_sequences")
+}
+
+/// Singleton settings row (id = 1).
+model Settings {
+  id             Int      @id @default(1)
+  gstRate        Decimal  @default(16) @db.Decimal(5, 2)
+  systemLocked   Boolean  @default(false)
+  companyName    String   @default("Grand Pearl Marquee")
+  companyAddress String?
+  companyPhone   String?
+  companyEmail   String?
+  currency       String   @default("PKR")
+  logoPath       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model Hall {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String    @unique
+  capacity  Int?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+
+  @@map("halls")
+}
+
+// ─────────────────────────────────────────────────────────────── Customers ──
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  code      String    @unique // CUST-0001
+  name      String
+  careOf    String?
+  phone     String? // plain, searchable
+  /// AES-256-GCM ciphertext of the CNIC (never stored in clear).
+  cnicEnc   String?   @db.Text
+  /// Deterministic HMAC-SHA256 blind index — EXACT-match search only.
+  cnicIndex String?
+  email     String?
+  address   String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+
+  @@index([phone])
+  @@index([cnicIndex])
+  @@index([name])
+  @@map("customers")
+}
+
+// ───────────────────────────────────────────────────── Chart of accounts ──
+
+model Account {
+  id             Int         @id @default(autoincrement())
+  code           String      @unique
+  name           String
+  type           AccountType
+  openingBalance Decimal     @default(0) @db.Decimal(14, 2)
+  isActive       Boolean     @default(true)
+  deletedAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  vendors        Vendor[]
+  voucherDebits  Voucher[]   @relation("VoucherDebit")
+  voucherCredits Voucher[]   @relation("VoucherCredit")
+  paymentSlips   PaymentSlip[]
+  costExpense    EventCost[] @relation("EventCostExpense")
+  costPaidFrom   EventCost[] @relation("EventCostPaidFrom")
+
+  @@map("accounts")
+}
+
+model Vendor {
+  id             Int      @id @default(autoincrement())
+  name           String
+  company        String?
+  phone          String?
+  email          String?
+  address        String?  @db.Text
+  accountId      Int? // linked supplier account
+  account        Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  openingBalance Decimal  @default(0) @db.Decimal(14, 2)
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  eventCosts EventCost[]
+
+  @@map("vendors")
+}
+
+// ─────────────────────────────────────────────────────────────── Inventory ──
+
+model InventoryItem {
+  id           Int             @id @default(autoincrement())
+  code         String          @unique
+  name         String
+  category     String?
+  unit         String?
+  /// Recomputed authoritatively from stock movements (see StockMovementService).
+  qtyOnHand    Decimal         @default(0) @db.Decimal(14, 2)
+  reorderLevel Decimal         @default(0) @db.Decimal(14, 2)
+  unitCost     Decimal         @default(0) @db.Decimal(14, 2)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  movements  StockMovement[]
+  eventCosts EventCost[]
+
+  @@map("inventory_items")
+}
+
+model StockMovement {
+  id              Int               @id @default(autoincrement())
+  inventoryItemId Int
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  type            StockMovementType
+  quantity        Decimal           @db.Decimal(14, 2)
+  unitCost        Decimal?          @db.Decimal(14, 2)
+  reference       String?
+  bookingId       Int?
+  booking         Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  date            DateTime          @default(now())
+  createdById     Int?
+  createdBy       User?             @relation("StockMovementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  eventCosts EventCost[]
+
+  @@index([inventoryItemId])
+  @@map("stock_movements")
+}
+
+// ─────────────────────────────────────────────────────────────── Bookings ──
+
+model Booking {
+  id             Int           @id @default(autoincrement())
+  bookingNo      String        @unique // BKG-0001
+  customerId     Int
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  hallId         Int
+  hall           Hall          @relation(fields: [hallId], references: [id])
+  eventDate      DateTime
+  bookingDate    DateTime      @default(now())
+  slot           Slot
+  startTime      String?
+  endTime        String?
+  eventType      String?
+  guests         Int           @default(0)
+  rackRate       Decimal       @default(0) @db.Decimal(10, 2)
+  discountedRate Decimal       @default(0) @db.Decimal(10, 2)
+  status         BookingStatus @default(tentative)
+  isLocked       Boolean       @default(false)
+
+  /// GST rate snapshot — frozen at creation; later rate changes never touch this.
+  gstRate        Decimal @default(16) @db.Decimal(5, 2)
+
+  // Snapshot totals (persisted so printed documents never change retroactively).
+  headchargeTotal Decimal @default(0) @db.Decimal(14, 2)
+  chargesTotal    Decimal @default(0) @db.Decimal(14, 2)
+  subtotal        Decimal @default(0) @db.Decimal(14, 2)
+  gstAmount       Decimal @default(0) @db.Decimal(14, 2)
+  grandTotal      Decimal @default(0) @db.Decimal(14, 2)
+  advanceTotal    Decimal @default(0) @db.Decimal(14, 2)
+  due             Decimal @default(0) @db.Decimal(14, 2)
+
+  remarks       String?   @db.Text
+  arrangements  String?   @db.Text
+  bulletinBoard String?   @db.Text
+
+  createdById   Int?
+  createdBy     User?     @relation("BookingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  confirmedById Int?
+  confirmedBy   User?     @relation("BookingConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedAt   DateTime?
+  eventClosedAt DateTime?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  charges        BookingCharge[]
+  foods          BookingFood[]
+  paymentSlips   PaymentSlip[]
+  eventCosts     EventCost[]
+  stockMovements StockMovement[]
+
+  // NOT unique — many tentatives may overlap; first-confirmed-wins is in code.
+  @@index([hallId, eventDate, slot])
+  @@index([customerId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BookingCharge {
+  id          Int        @id @default(autoincrement())
+  bookingId   Int
+  booking     Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  chargeType  ChargeType
+  description String?
+  quantity    Decimal    @default(1) @db.Decimal(14, 2)
+  unitPrice   Decimal    @default(0) @db.Decimal(14, 2)
+  amount      Decimal    @default(0) @db.Decimal(14, 2)
+  deletedAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([bookingId])
+  @@map("booking_charges")
+}
+
+model BookingFood {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  name      String
+  urduName  String?
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bookingId])
+  @@map("booking_foods")
+}
+
+// ─────────────────────────────────────────────────────── Payments / vouchers ──
+
+model PaymentSlip {
+  id          Int           @id @default(autoincrement())
+  slipNo      String        @unique // SLIP-0001 (gapless)
+  bookingId   Int
+  booking     Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  accountId   Int // cash/bank account received into
+  account     Account       @relation(fields: [accountId], references: [id])
+  date        DateTime      @default(now())
+  amount      Decimal       @db.Decimal(14, 2)
+  method      PaymentMethod @default(cash)
+  reference   String?
+  remark      String?
+  voucherId   Int?          @unique
+  voucher     Voucher?      @relation("SlipVoucher", fields: [voucherId], references: [id], onDelete: SetNull)
+  createdById Int?
+  createdBy   User?         @relation("SlipCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([bookingId])
+  @@map("payment_slips")
+}
+
+model Voucher {
+  id              Int         @id @default(autoincrement())
+  voucherNo       String      @unique // prefixed per type: RV-/EV-/PV-/JV-
+  batchUid        String? // uuid — multi-line postings reverse as one unit
+  type            VoucherType
+  date            DateTime    @default(now())
+  category        String?
+  remark          String?
+  debitAccountId  Int
+  debitAccount    Account     @relation("VoucherDebit", fields: [debitAccountId], references: [id])
+  creditAccountId Int
+  creditAccount   Account     @relation("VoucherCredit", fields: [creditAccountId], references: [id])
+  amount          Decimal     @db.Decimal(14, 2)
+
+  // Polymorphic source link (booking | slip | eventCost).
+  sourceType String?
+  sourceId   Int?
+
+  createdById Int?
+  createdBy   User?     @relation("VoucherCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  slip       PaymentSlip? @relation("SlipVoucher")
+  eventCosts EventCost[]  @relation("EventCostVoucher")
+
+  @@index([type])
+  @@index([batchUid])
+  @@index([sourceType, sourceId])
+  @@map("vouchers")
+}
+
+model EventCost {
+  id                Int            @id @default(autoincrement())
+  bookingId         Int
+  booking           Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vendorId          Int?
+  vendor            Vendor?        @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  inventoryItemId   Int?
+  inventoryItem     InventoryItem? @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  costType          CostType
+  quantity          Decimal?       @db.Decimal(14, 2)
+  description       String?
+  amount            Decimal        @db.Decimal(14, 2)
+  date              DateTime       @default(now())
+  expenseAccountId  Int?
+  expenseAccount    Account?       @relation("EventCostExpense", fields: [expenseAccountId], references: [id], onDelete: SetNull)
+  paidFromAccountId Int?
+  paidFromAccount   Account?       @relation("EventCostPaidFrom", fields: [paidFromAccountId], references: [id], onDelete: SetNull)
+  voucherId         Int?
+  voucher           Voucher?       @relation("EventCostVoucher", fields: [voucherId], references: [id], onDelete: SetNull)
+  stockMovementId   Int?
+  stockMovement     StockMovement? @relation(fields: [stockMovementId], references: [id], onDelete: SetNull)
+  createdById       Int?
+  createdBy         User?          @relation("EventCostCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  deletedAt         DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([bookingId])
+  @@map("event_costs")
+}
+
+// ─────────────────────────────────────────────────────────── Assets / decor ──
+
+model Asset {
+  id           Int            @id @default(autoincrement())
+  code         String         @unique
+  name         String
+  category     String?
+  quantity     Int            @default(0)
+  purchaseDate DateTime?
+  purchaseCost Decimal?       @db.Decimal(14, 2)
+  condition    AssetCondition @default(good)
+  status       AssetStatus    @default(available)
+  notes        String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("assets")
+}
+
+model DecorItem {
+  id          Int         @id @default(autoincrement())
+  code        String      @unique
+  name        String
+  description String?     @db.Text
+  quantity    Int         @default(0)
+  rate        Decimal?    @db.Decimal(14, 2)
+  status      DecorStatus @default(available)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("decor_items")
+}
+
+// ─────────────────────────────────────────────────────────────── Audit log ──
+
+model Audit {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation("AuditUser", fields: [userId], references: [id], onDelete: SetNull)
+  action    String // create | update | delete
+  model     String
+  modelId   Int?
+  oldData   Json?
+  newData   Json?
+  createdAt DateTime @default(now())
+
+  @@index([model, modelId])
+  @@index([userId])
+  @@map("audits")
+}

@@ -1,0 +1,26 @@
+{
+  "name": "grand-pearl-marquee",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Grand Pearl Marquee ERP — management system for a wedding/banquet marquee business",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "build": "npm run build --workspace server && npm run build --workspace client",
+    "test": "npm run test --workspace server",
+    "db:migrate": "npm run db:migrate --workspace server",
+    "db:seed": "npm run db:seed --workspace server",
+    "db:reset": "npm run db:reset --workspace server"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

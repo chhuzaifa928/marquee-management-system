@@ -1,0 +1,44 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# env — never commit secrets
+.env
+**/.env
+.env.*
+!.env.example
+!**/.env.example
+
+# build output
+dist/
+build/
+**/dist/
+**/build/
+client/dist/
+client/dist-tsconfig-node/
+*.tsbuildinfo
+
+# prisma generated client
+server/src/generated/
+server/node_modules/.prisma/
+
+# test / coverage
+coverage/
+**/coverage/
+*.lcov
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# runtime artifacts
+server/uploads/
+server/tmp/
+*.pid
