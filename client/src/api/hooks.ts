@@ -264,6 +264,72 @@ export function useCloseEvent() {
   });
 }
 
+// ── Inventory / Assets / Decor / Vendors / Event costs ──────────────────────
+export function useInventory(lowStock = false) {
+  return useQuery({ queryKey: ["inventory", lowStock], queryFn: async () => (await api.get<any[]>("/inventory/items", { params: lowStock ? { lowStock: 1 } : {} })).data });
+}
+export function useInventoryItem(id: number | null) {
+  return useQuery({ queryKey: ["inventory-item", id], enabled: id != null, queryFn: async () => (await api.get(`/inventory/items/${id}`)).data as { item: any; movements: any[] } });
+}
+export function useInventoryMutation() {
+  const qc = useQueryClient();
+  const inv = () => { qc.invalidateQueries({ queryKey: ["inventory"] }); qc.invalidateQueries({ queryKey: ["inventory-item"] }); };
+  return {
+    create: useMutation({ mutationFn: async (b: Record<string, unknown>) => (await api.post("/inventory/items", b)).data, onSuccess: inv }),
+    update: useMutation({ mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => (await api.put(`/inventory/items/${id}`, body)).data, onSuccess: inv }),
+    addMovement: useMutation({ mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => (await api.post(`/inventory/items/${id}/movements`, body)).data, onSuccess: inv }),
+    deleteMovement: useMutation({ mutationFn: async (mid: number) => (await api.delete(`/inventory/movements/${mid}`)).data, onSuccess: inv }),
+  };
+}
+
+export function useAssets() { return useQuery({ queryKey: ["assets"], queryFn: async () => (await api.get<any[]>("/assets")).data }); }
+export function useAssetMutation() {
+  const qc = useQueryClient();
+  const inv = () => qc.invalidateQueries({ queryKey: ["assets"] });
+  return {
+    create: useMutation({ mutationFn: async (b: Record<string, unknown>) => (await api.post("/assets", b)).data, onSuccess: inv }),
+    update: useMutation({ mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => (await api.put(`/assets/${id}`, body)).data, onSuccess: inv }),
+    remove: useMutation({ mutationFn: async (id: number) => (await api.delete(`/assets/${id}`)).data, onSuccess: inv }),
+  };
+}
+
+export function useDecor() { return useQuery({ queryKey: ["decor"], queryFn: async () => (await api.get<any[]>("/decor")).data }); }
+export function useDecorMutation() {
+  const qc = useQueryClient();
+  const inv = () => qc.invalidateQueries({ queryKey: ["decor"] });
+  return {
+    create: useMutation({ mutationFn: async (b: Record<string, unknown>) => (await api.post("/decor", b)).data, onSuccess: inv }),
+    update: useMutation({ mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => (await api.put(`/decor/${id}`, body)).data, onSuccess: inv }),
+    remove: useMutation({ mutationFn: async (id: number) => (await api.delete(`/decor/${id}`)).data, onSuccess: inv }),
+  };
+}
+
+export function useVendors() { return useQuery({ queryKey: ["vendors"], queryFn: async () => (await api.get<any[]>("/vendors")).data }); }
+export function useVendorMutation() {
+  const qc = useQueryClient();
+  const inv = () => qc.invalidateQueries({ queryKey: ["vendors"] });
+  return {
+    create: useMutation({ mutationFn: async (b: Record<string, unknown>) => (await api.post("/vendors", b)).data, onSuccess: inv }),
+    remove: useMutation({ mutationFn: async (id: number) => (await api.delete(`/vendors/${id}`)).data, onSuccess: inv }),
+  };
+}
+
+export function useEventCosts(bookingId: number | null) {
+  return useQuery({ queryKey: ["event-costs", bookingId], enabled: bookingId != null, queryFn: async () => (await api.get(`/event-costs/bookings/${bookingId}`)).data as any });
+}
+export function useEventCostMutation() {
+  const qc = useQueryClient();
+  const inv = () => qc.invalidateQueries({ queryKey: ["event-costs"] });
+  return {
+    create: useMutation({ mutationFn: async ({ bookingId, body }: { bookingId: number; body: Record<string, unknown> }) => (await api.post(`/event-costs/bookings/${bookingId}`, body)).data, onSuccess: inv }),
+    remove: useMutation({ mutationFn: async (costId: number) => (await api.delete(`/event-costs/${costId}`)).data, onSuccess: inv }),
+  };
+}
+
+export function useDashboard() {
+  return useQuery({ queryKey: ["dashboard"], queryFn: async () => (await api.get("/dashboard")).data as any });
+}
+
 // ── Admin ────────────────────────────────────────────────────────────────────
 export interface AdminSettings {
   gstRate: string; systemLocked: boolean;

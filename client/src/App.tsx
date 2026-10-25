@@ -6,7 +6,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Layout } from "./components/Layout";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { ModulePlaceholder } from "./pages/ModulePlaceholder";
 import { CustomersPage } from "./pages/customers/CustomersPage";
 import { CustomerDetailPage } from "./pages/customers/CustomerDetailPage";
 import { BookingsPage } from "./pages/bookings/BookingsPage";
@@ -17,20 +16,16 @@ import { PaymentsPage } from "./pages/payments/PaymentsPage";
 import { AccountingPage } from "./pages/accounting/AccountingPage";
 import { ReportsPage } from "./pages/reports/ReportsPage";
 import { AdminPage } from "./pages/admin/AdminPage";
+import { InventoryPage } from "./pages/inventory/InventoryPage";
+import { AssetsPage } from "./pages/assets/AssetsPage";
+import { DecorPage } from "./pages/decor/DecorPage";
+import { VendorsPage } from "./pages/vendors/VendorsPage";
+import { EventCostsPage } from "./pages/eventCosts/EventCostsPage";
 import type { ModuleKey } from "./config/modules";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
-
-// Modules still awaiting their real UI (built in Modules 3–8).
-const PLACEHOLDERS: ModuleKey[] = [
-  "event_costs",
-  "inventory",
-  "assets",
-  "decor",
-  "vendors",
-];
 
 function guard(module: ModuleKey, element: ReactElement) {
   return <ProtectedRoute module={module}>{element}</ProtectedRoute>;
@@ -64,14 +59,11 @@ export default function App() {
               <Route path="/accounting" element={guard("accounting", <AccountingPage />)} />
               <Route path="/reports" element={guard("reports", <ReportsPage />)} />
               <Route path="/admin" element={guard("admin", <AdminPage />)} />
-
-              {PLACEHOLDERS.map((m) => (
-                <Route
-                  key={m}
-                  path={pathFor(m)}
-                  element={guard(m, <ModulePlaceholder moduleKey={m} />)}
-                />
-              ))}
+              <Route path="/inventory" element={guard("inventory", <InventoryPage />)} />
+              <Route path="/assets" element={guard("assets", <AssetsPage />)} />
+              <Route path="/decor" element={guard("decor", <DecorPage />)} />
+              <Route path="/vendors" element={guard("vendors", <VendorsPage />)} />
+              <Route path="/event-costs" element={guard("event_costs", <EventCostsPage />)} />
             </Route>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
@@ -80,8 +72,4 @@ export default function App() {
       </AuthProvider>
     </QueryClientProvider>
   );
-}
-
-function pathFor(m: ModuleKey): string {
-  return m === "event_costs" ? "/event-costs" : `/${m}`;
 }

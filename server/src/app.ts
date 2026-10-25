@@ -13,6 +13,12 @@ import paymentsRoutes from "./modules/payments/payments.routes";
 import accountingRoutes from "./modules/accounting/accounting.routes";
 import reportsRoutes from "./modules/reports/reports.routes";
 import adminRoutes from "./modules/admin/admin.routes";
+import inventoryRoutes from "./modules/inventory/inventory.routes";
+import assetsRoutes from "./modules/assets/assets.routes";
+import decorRoutes from "./modules/decor/decor.routes";
+import vendorsRoutes from "./modules/vendors/vendors.routes";
+import eventCostsRoutes from "./modules/eventCosts/eventCosts.routes";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 
 /**
  * Build the Express app. Exported as a factory so tests can mount it with
@@ -43,6 +49,12 @@ export function createApp(): Express {
   app.use("/api/accounting", accountingRoutes);
   app.use("/api/reports", reportsRoutes);
   app.use("/api/admin", adminRoutes);
+  app.use("/api/inventory", inventoryRoutes);
+  app.use("/api/assets", assetsRoutes);
+  app.use("/api/decor", decorRoutes);
+  app.use("/api/vendors", vendorsRoutes);
+  app.use("/api/event-costs", eventCostsRoutes);
+  app.use("/api/dashboard", dashboardRoutes);
 
   // 404 + error handling (must be last).
   app.use(notFoundHandler);

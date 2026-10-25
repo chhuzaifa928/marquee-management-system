@@ -126,7 +126,22 @@ development data.
 
 ## Build status
 
-Built module by module (see the build plan). **Module 1 (Foundation)** —
-monorepo, Prisma schema, auth + RBAC, seeders, gapless numbering, health check —
-is complete with a green test suite. Subsequent modules (bookings, payments,
-accounting, reports, inventory, assets/decor/vendors, super-admin) follow.
+All eight modules are built, each committed with a green test suite:
+
+1. **Foundation** — monorepo, Prisma schema, auth + RBAC (6 roles), seeders,
+   gapless numbering, health check.
+2. **Customers + Bookings** — availability (first-confirmed-wins), GST/totals
+   snapshot, charges, English+Urdu menu, PDFs, per-hall calendar.
+3. **Payments** — gapless slips, Receipt Voucher posting, money-driven status
+   machine.
+4. **Accounting** — chart of accounts, derived balances, vouchers, manual
+   EV/PV/JV, General Ledger, Close Event revenue recognition.
+5. **Reports** — Cash Closing, General Ledger, Supplier Summary, Bookings Master,
+   Profit & Loss (From–To, A4 PDF).
+6. **Inventory** — items + stock movements (recomputed, never drifts), low stock.
+7. **Assets, Decor, Vendors, Event Costs** — registers + costing/profitability
+   (vendor / inventory / misc postings).
+8. **Admin + dashboards** — settings, GST, system lock, users & roles, audit log;
+   role-aware dashboard with revenue chart. See `DEPLOY.md` and `SECURITY.md`.
+
+Permission model follows the SRS matrix (see `SECURITY.md`).
