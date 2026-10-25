@@ -1,3 +1,5 @@
+import request from "supertest";
+import type { Express } from "express";
 import { prisma } from "../src/prisma";
 import { hashPassword } from "../src/lib/password";
 import { ROLE_LABELS, ROLES, type RoleName } from "../src/auth/rbac";
@@ -77,4 +79,35 @@ export async function createUser(opts: {
     await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
   }
   return user;
+}
+
+/** Seed the two halls; returns name→id. */
+export async function seedHalls(): Promise<Record<string, number>> {
+  const defs = [
+    { name: "Pearl Hall", slug: "pearl-hall" },
+    { name: "Emerald Hall", slug: "emerald-hall" },
+  ];
+  const map: Record<string, number> = {};
+  for (const h of defs) {
+    const hall = await prisma.hall.create({ data: h });
+    map[h.name] = hall.id;
+  }
+  return map;
+}
+
+/** Create a user with the given roles and return a logged-in supertest agent. */
+export async function authAgent(
+  app: Express,
+  opts: { email: string; password?: string; roles: RoleName[] },
+) {
+  const password = opts.password ?? "Password!123";
+  await createUser({ email: opts.email, password, roles: opts.roles });
+  const agent = request.agent(app);
+  const res = await agent
+    .post("/api/auth/login")
+    .send({ email: opts.email, password });
+  if (res.status !== 200) {
+    throw new Error(`login failed for ${opts.email}: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+  return agent;
 }

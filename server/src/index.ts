@@ -1,4 +1,3 @@
-import "./types/express";
 import { createApp } from "./app";
 import { env } from "./env";
 import { prisma } from "./prisma";

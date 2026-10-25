@@ -41,4 +41,5 @@ Thumbs.db
 # runtime artifacts
 server/uploads/
 server/tmp/
+**/tmp-*
 *.pid

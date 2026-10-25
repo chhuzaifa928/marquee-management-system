@@ -6,6 +6,9 @@ import { clientOrigins } from "./env";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 import authRoutes from "./modules/auth/auth.routes";
 import healthRoutes from "./modules/health/health.routes";
+import referenceRoutes from "./modules/reference/reference.routes";
+import customersRoutes from "./modules/customers/customers.routes";
+import bookingsRoutes from "./modules/bookings/bookings.routes";
 
 /**
  * Build the Express app. Exported as a factory so tests can mount it with
@@ -29,6 +32,9 @@ export function createApp(): Express {
   // Routes
   app.use("/api/health", healthRoutes);
   app.use("/api/auth", authRoutes);
+  app.use("/api", referenceRoutes);
+  app.use("/api/customers", customersRoutes);
+  app.use("/api/bookings", bookingsRoutes);
 
   // 404 + error handling (must be last).
   app.use(notFoundHandler);
