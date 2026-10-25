@@ -11,12 +11,21 @@
     5. Verifies the new 'grandpearl' app login works.
 
   It sets:
-    - root@localhost password -> 'REDACTED_DEV_PASSWORD'   (so you can use Workbench again)
+    - the root@localhost password to the value you pass as -RootPassword
     - creates databases: grand_pearl, grand_pearl_test, grand_pearl_shadow
-    - creates app user: grandpearl@localhost / 'REDACTED_DEV_PASSWORD' (used by the app)
+    - creates app user grandpearl@localhost with the value you pass as -AppPassword
+      (put the SAME value in server/.env DATABASE_URL — never commit it)
+
+  Usage (elevated PowerShell):
+    .\reset-mysql.ps1 -RootPassword 'yourRootPw' -AppPassword 'yourAppPw'
 
   Nothing here is destructive to existing databases.
 #>
+
+param(
+  [Parameter(Mandatory = $true)][string]$RootPassword,
+  [Parameter(Mandatory = $true)][string]$AppPassword
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -26,8 +35,8 @@ $defaults  = 'C:\ProgramData\MySQL\MySQL Server 8.0\my.ini'
 $service   = 'MySQL80'
 $initFile  = Join-Path $PSScriptRoot 'gp-mysql-init.sql'
 
-$rootPw = 'REDACTED_DEV_PASSWORD'
-$appPw  = 'REDACTED_DEV_PASSWORD'
+$rootPw = $RootPassword
+$appPw  = $AppPassword
 
 foreach ($p in @($mysqldExe, $mysqlExe, $defaults)) {
   if (-not (Test-Path $p)) { throw "Not found: $p" }

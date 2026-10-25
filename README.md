@@ -57,22 +57,22 @@ least-privilege:
 CREATE DATABASE IF NOT EXISTS grand_pearl        CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS grand_pearl_test   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS grand_pearl_shadow CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'grandpearl'@'localhost' IDENTIFIED BY 'REDACTED_DEV_PASSWORD';
+CREATE USER IF NOT EXISTS 'grandpearl'@'localhost' IDENTIFIED BY 'CHOOSE_A_STRONG_PASSWORD';
 GRANT ALL PRIVILEGES ON grand_pearl.*        TO 'grandpearl'@'localhost';
 GRANT ALL PRIVILEGES ON grand_pearl_test.*   TO 'grandpearl'@'localhost';
 GRANT ALL PRIVILEGES ON grand_pearl_shadow.* TO 'grandpearl'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-`server/.env` then uses:
+`server/.env` then uses that password (keep it out of git — `.env` is ignored):
 
 ```
-DATABASE_URL="mysql://grandpearl:REDACTED_DEV_PASSWORD@localhost:3306/grand_pearl"
-TEST_DATABASE_URL="mysql://grandpearl:REDACTED_DEV_PASSWORD@localhost:3306/grand_pearl_test"
-SHADOW_DATABASE_URL="mysql://grandpearl:REDACTED_DEV_PASSWORD@localhost:3306/grand_pearl_shadow"
+DATABASE_URL="mysql://grandpearl:YOUR_DB_PASSWORD@localhost:3306/grand_pearl"
+TEST_DATABASE_URL="mysql://grandpearl:YOUR_DB_PASSWORD@localhost:3306/grand_pearl_test"
+SHADOW_DATABASE_URL="mysql://grandpearl:YOUR_DB_PASSWORD@localhost:3306/grand_pearl_shadow"
 ```
 
-Change the password for any non-local use, and URL-encode special characters
+Choose your own password, and URL-encode special characters
 (`@` → `%40`, `#` → `%23`, etc.).
 
 ## Seeded accounts
