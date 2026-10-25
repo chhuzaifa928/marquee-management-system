@@ -13,6 +13,7 @@ import { BookingsPage } from "./pages/bookings/BookingsPage";
 import { BookingCreatePage } from "./pages/bookings/BookingCreatePage";
 import { BookingDetailPage } from "./pages/bookings/BookingDetailPage";
 import { CalendarPage } from "./pages/bookings/CalendarPage";
+import { PaymentsPage } from "./pages/payments/PaymentsPage";
 import type { ModuleKey } from "./config/modules";
 
 const queryClient = new QueryClient({
@@ -21,7 +22,6 @@ const queryClient = new QueryClient({
 
 // Modules still awaiting their real UI (built in Modules 3–8).
 const PLACEHOLDERS: ModuleKey[] = [
-  "payments",
   "accounting",
   "event_costs",
   "inventory",
@@ -59,6 +59,8 @@ export default function App() {
               <Route path="/bookings/new" element={guard("bookings", <BookingCreatePage />)} />
               <Route path="/bookings/calendar" element={guard("bookings", <CalendarPage />)} />
               <Route path="/bookings/:id" element={guard("bookings", <BookingDetailPage />)} />
+
+              <Route path="/payments" element={guard("payments", <PaymentsPage />)} />
 
               {PLACEHOLDERS.map((m) => (
                 <Route

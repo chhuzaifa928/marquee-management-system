@@ -121,6 +121,69 @@ export function useCreateBooking() {
   });
 }
 
+// ── Payments ─────────────────────────────────────────────────────────────────
+export interface PaymentAccount {
+  id: number;
+  code: string;
+  name: string;
+  type: string;
+}
+export interface Slip {
+  id: number;
+  slipNo: string;
+  bookingId: number;
+  bookingNo: string;
+  customer: string;
+  account: string;
+  amount: string;
+  method: string;
+  reference: string | null;
+  voucherNo: string | null;
+  date: string;
+}
+
+export function usePaymentAccounts() {
+  return useQuery({
+    queryKey: ["payment-accounts"],
+    queryFn: async () => (await api.get<PaymentAccount[]>("/payments/accounts")).data,
+  });
+}
+
+export function useSlips(bookingId: number | null) {
+  return useQuery({
+    queryKey: ["slips", bookingId],
+    queryFn: async () =>
+      (await api.get<{ data: Slip[]; total: number }>("/payments/slips", {
+        params: bookingId ? { bookingId } : {},
+      })).data,
+  });
+}
+
+export function useCreateSlip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown>) =>
+      (await api.post("/payments/slips", body)).data,
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["slips"] });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+      const bid = (v as { bookingId?: number }).bookingId;
+      if (bid) qc.invalidateQueries({ queryKey: ["booking", bid] });
+    },
+  });
+}
+
+export function useDeleteSlip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => (await api.delete(`/payments/slips/${id}`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["slips"] });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
 export function useBookingMutation() {
   const qc = useQueryClient();
   const invalidate = (id?: number) => {

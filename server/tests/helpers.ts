@@ -81,6 +81,29 @@ export async function createUser(opts: {
   return user;
 }
 
+/** Seed the chart-of-accounts entries used by posting logic; returns code→id. */
+export async function seedAccounts(): Promise<Record<string, number>> {
+  const defs: { code: string; name: string; type: import("@prisma/client").AccountType }[] = [
+    { code: "1010", name: "Cash", type: "cash" },
+    { code: "1101", name: "Bank Account 1", type: "bank" },
+    { code: "1201", name: "Staff / Holding", type: "staff" },
+    { code: "1500", name: "Inventory", type: "asset" },
+    { code: "2100", name: "Customer Advances", type: "liability" },
+    { code: "2200", name: "GST Payable", type: "liability" },
+    { code: "2301", name: "Suppliers Payable — General", type: "supplier" },
+    { code: "4100", name: "Food Sales", type: "income" },
+    { code: "4200", name: "Hall Charges", type: "income" },
+    { code: "4400", name: "DJ", type: "income" },
+    { code: "5600", name: "Event Consumables", type: "expense" },
+  ];
+  const map: Record<string, number> = {};
+  for (const a of defs) {
+    const acc = await prisma.account.create({ data: { ...a, openingBalance: 0 } });
+    map[a.code] = acc.id;
+  }
+  return map;
+}
+
 /** Seed the two halls; returns name→id. */
 export async function seedHalls(): Promise<Record<string, number>> {
   const defs = [

@@ -125,9 +125,12 @@ export function BookingDetailPage() {
             </div>
           </Card>
 
-          {editable && (
-            <Card>
-              <h2 className="mb-3 text-sm font-semibold uppercase text-pearl-400">Actions</h2>
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold uppercase text-pearl-400">Actions</h2>
+            <Link to={`/payments?bookingId=${b.id}`}>
+              <Button className="mb-2 w-full">Record payment</Button>
+            </Link>
+            {editable && (
               <Button
                 variant="danger"
                 className="w-full"
@@ -135,11 +138,8 @@ export function BookingDetailPage() {
               >
                 Cancel booking
               </Button>
-              <p className="mt-2 text-xs text-pearl-400">
-                Payments &amp; confirmation arrive with the Payments module.
-              </p>
-            </Card>
-          )}
+            )}
+          </Card>
         </div>
       </div>
     </div>
