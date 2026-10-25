@@ -10,6 +10,9 @@ import referenceRoutes from "./modules/reference/reference.routes";
 import customersRoutes from "./modules/customers/customers.routes";
 import bookingsRoutes from "./modules/bookings/bookings.routes";
 import paymentsRoutes from "./modules/payments/payments.routes";
+import accountingRoutes from "./modules/accounting/accounting.routes";
+import reportsRoutes from "./modules/reports/reports.routes";
+import adminRoutes from "./modules/admin/admin.routes";
 
 /**
  * Build the Express app. Exported as a factory so tests can mount it with
@@ -37,6 +40,9 @@ export function createApp(): Express {
   app.use("/api/customers", customersRoutes);
   app.use("/api/bookings", bookingsRoutes);
   app.use("/api/payments", paymentsRoutes);
+  app.use("/api/accounting", accountingRoutes);
+  app.use("/api/reports", reportsRoutes);
+  app.use("/api/admin", adminRoutes);
 
   // 404 + error handling (must be last).
   app.use(notFoundHandler);

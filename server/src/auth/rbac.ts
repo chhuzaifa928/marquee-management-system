@@ -53,8 +53,13 @@ export type ModuleKey = (typeof MODULES)[number];
  * intentionally omitted (it can reach everything).
  */
 export const ROLE_MODULES: Record<Exclude<RoleName, "super_admin">, ModuleKey[]> = {
-  admin: [...MODULES], // general manager — all modules (but not super-admin-only actions)
-  sales: ["dashboard", "customers", "bookings", "payments"],
+  // Owner — full operational view of every module. Action-level gates (below)
+  // still stop admin from posting/editing vouchers, event costing and the lock.
+  admin: [...MODULES],
+  // Sales bring clients and create bookings; they do NOT record payments or post
+  // vouchers (SRS permission matrix). Reports are scoped to their own bookings.
+  sales: ["dashboard", "customers", "bookings", "reports"],
+  // Accounts confirm bookings, record payments, post vouchers, event costing, reports.
   accounts: [
     "dashboard",
     "customers",
@@ -62,10 +67,10 @@ export const ROLE_MODULES: Record<Exclude<RoleName, "super_admin">, ModuleKey[]>
     "payments",
     "accounting",
     "event_costs",
-    "vendors",
     "reports",
   ],
-  inventory: ["dashboard", "inventory", "assets"],
+  // Inventory manages only the inventory register (assets are Admin/Super only).
+  inventory: ["dashboard", "inventory"],
   decor: ["dashboard", "decor"],
 };
 
@@ -114,4 +119,29 @@ export function canEditGstRate(roles: string[]): boolean {
 /** Only super_admin may toggle the system lock. */
 export function canToggleSystemLock(roles: string[]): boolean {
   return isSuperAdmin(roles);
+}
+
+/** Post accounting vouchers (manual EV/PV/transfer, Close Event): accounts + super. NOT admin. */
+export function canPostVoucher(roles: string[]): boolean {
+  return hasAnyRole(roles, ["accounts"]);
+}
+
+/** Confirm bookings / record payments: admin, accounts (+ super). NOT sales. */
+export function canRecordPayment(roles: string[]): boolean {
+  return hasAnyRole(roles, ["admin", "accounts"]);
+}
+
+/** Enter event costing: accounts (+ super), only after full payment. NOT admin. */
+export function canEnterEventCost(roles: string[]): boolean {
+  return hasAnyRole(roles, ["accounts"]);
+}
+
+/** Manage assets & vendors: admin (+ super) only. */
+export function canManageAssetsVendors(roles: string[]): boolean {
+  return hasAnyRole(roles, ["admin"]);
+}
+
+/** Manage users: admin (+ super). */
+export function canManageUsers(roles: string[]): boolean {
+  return hasAnyRole(roles, ["admin"]);
 }

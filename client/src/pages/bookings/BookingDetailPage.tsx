@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useBooking, useBookingMutation } from "../../api/hooks";
+import { useBooking, useBookingMutation, useCloseEvent } from "../../api/hooks";
+import { useAuth } from "../../auth/AuthContext";
 import { CHARGE_LABELS, type ChargeType } from "../../api/types";
 import { fmtDate, money } from "../../lib/format";
 import { Button, Card, inputClass, PageHeader, StatusBadge } from "../../components/ui";
@@ -20,6 +21,11 @@ export function BookingDetailPage() {
   const bookingId = Number(id);
   const { data: b, isLoading } = useBooking(bookingId);
   const { addCharge, removeCharge, setFoods, cancel } = useBookingMutation();
+  const { modules, user } = useAuth();
+  const canPay = modules.includes("payments");
+  const canClose =
+    (user?.roles.includes("accounts") || user?.roles.includes("super_admin")) ?? false;
+  const closeEvent = useCloseEvent();
 
   if (isLoading) return <p className="text-pearl-500">Loading…</p>;
   if (!b) return <p className="text-pearl-500">Booking not found.</p>;
@@ -125,21 +131,34 @@ export function BookingDetailPage() {
             </div>
           </Card>
 
-          <Card>
-            <h2 className="mb-3 text-sm font-semibold uppercase text-pearl-400">Actions</h2>
-            <Link to={`/payments?bookingId=${b.id}`}>
-              <Button className="mb-2 w-full">Record payment</Button>
-            </Link>
-            {editable && (
-              <Button
-                variant="danger"
-                className="w-full"
-                onClick={() => { if (confirm("Cancel this booking?")) cancel.mutate(b.id); }}
-              >
-                Cancel booking
-              </Button>
-            )}
-          </Card>
+          {(canPay || editable || (canClose && b.status === "paid")) && (
+            <Card>
+              <h2 className="mb-3 text-sm font-semibold uppercase text-pearl-400">Actions</h2>
+              {canPay && (
+                <Link to={`/payments?bookingId=${b.id}`}>
+                  <Button className="mb-2 w-full">Record payment</Button>
+                </Link>
+              )}
+              {canClose && b.status === "paid" && (
+                <Button
+                  className="mb-2 w-full"
+                  disabled={!!b.eventClosedAt || closeEvent.isPending}
+                  onClick={() => closeEvent.mutate(b.id)}
+                >
+                  {b.eventClosedAt ? "Event closed ✓" : closeEvent.isPending ? "Closing…" : "Close event (recognise revenue)"}
+                </Button>
+              )}
+              {editable && (
+                <Button
+                  variant="danger"
+                  className="w-full"
+                  onClick={() => { if (confirm("Cancel this booking?")) cancel.mutate(b.id); }}
+                >
+                  Cancel booking
+                </Button>
+              )}
+            </Card>
+          )}
         </div>
       </div>
     </div>

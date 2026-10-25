@@ -14,6 +14,9 @@ import { BookingCreatePage } from "./pages/bookings/BookingCreatePage";
 import { BookingDetailPage } from "./pages/bookings/BookingDetailPage";
 import { CalendarPage } from "./pages/bookings/CalendarPage";
 import { PaymentsPage } from "./pages/payments/PaymentsPage";
+import { AccountingPage } from "./pages/accounting/AccountingPage";
+import { ReportsPage } from "./pages/reports/ReportsPage";
+import { AdminPage } from "./pages/admin/AdminPage";
 import type { ModuleKey } from "./config/modules";
 
 const queryClient = new QueryClient({
@@ -22,14 +25,11 @@ const queryClient = new QueryClient({
 
 // Modules still awaiting their real UI (built in Modules 3–8).
 const PLACEHOLDERS: ModuleKey[] = [
-  "accounting",
   "event_costs",
   "inventory",
   "assets",
   "decor",
   "vendors",
-  "reports",
-  "admin",
 ];
 
 function guard(module: ModuleKey, element: ReactElement) {
@@ -61,6 +61,9 @@ export default function App() {
               <Route path="/bookings/:id" element={guard("bookings", <BookingDetailPage />)} />
 
               <Route path="/payments" element={guard("payments", <PaymentsPage />)} />
+              <Route path="/accounting" element={guard("accounting", <AccountingPage />)} />
+              <Route path="/reports" element={guard("reports", <ReportsPage />)} />
+              <Route path="/admin" element={guard("admin", <AdminPage />)} />
 
               {PLACEHOLDERS.map((m) => (
                 <Route

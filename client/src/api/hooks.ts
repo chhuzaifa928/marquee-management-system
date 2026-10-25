@@ -184,6 +184,130 @@ export function useDeleteSlip() {
   });
 }
 
+// ── Accounting ───────────────────────────────────────────────────────────────
+export interface AccountRow {
+  id: number;
+  code: string;
+  name: string;
+  type: string;
+  openingBalance: string;
+  isActive: boolean;
+  normalSide?: string;
+  balance?: string;
+}
+export interface VoucherRow {
+  id: number;
+  voucherNo: string;
+  type: string;
+  date: string;
+  category: string | null;
+  remark: string | null;
+  debit: string;
+  credit: string;
+  amount: string;
+  createdBy: string | null;
+  batchUid: string | null;
+  source: { type: string; id: number | null } | null;
+}
+
+export function useAccounts(withBalances = false) {
+  return useQuery({
+    queryKey: ["accounts", withBalances],
+    queryFn: async () =>
+      (await api.get<AccountRow[]>("/accounting/accounts", { params: withBalances ? { balances: 1 } : {} })).data,
+  });
+}
+
+export function useVouchers(params: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ["vouchers", params],
+    queryFn: async () =>
+      (await api.get<{ data: VoucherRow[]; total: number }>("/accounting/vouchers", { params })).data,
+  });
+}
+
+export function useGeneralLedger(accountId: number | null, from: string, to: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["gl", accountId, from, to],
+    enabled: enabled && accountId != null,
+    queryFn: async () =>
+      (await api.get(`/accounting/accounts/${accountId}/ledger`, { params: { from, to } })).data as {
+        account: { id: number; code: string; name: string; type: string; normalSide: string };
+        opening: string; movementDebit: string; movementCredit: string; closing: string;
+        rows: { date: string; voucherNo: string; type: string; description: string; contra: string; debit: string; credit: string; balance: string }[];
+      },
+  });
+}
+
+export function usePostVoucher() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown>) => (await api.post("/accounting/vouchers", body)).data,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["vouchers"] }); qc.invalidateQueries({ queryKey: ["accounts"] }); },
+  });
+}
+
+export function useAccountMutation() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["accounts"] });
+  return {
+    create: useMutation({ mutationFn: async (b: Record<string, unknown>) => (await api.post("/accounting/accounts", b)).data, onSuccess: invalidate }),
+    update: useMutation({ mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => (await api.put(`/accounting/accounts/${id}`, body)).data, onSuccess: invalidate }),
+  };
+}
+
+export function useCloseEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (bookingId: number) => (await api.post(`/accounting/bookings/${bookingId}/close`)).data,
+    onSuccess: (_d, id) => { qc.invalidateQueries({ queryKey: ["booking", id] }); qc.invalidateQueries({ queryKey: ["vouchers"] }); },
+  });
+}
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+export interface AdminSettings {
+  gstRate: string; systemLocked: boolean;
+  companyName: string; companyAddress: string | null; companyPhone: string | null; companyEmail: string | null; currency: string; logoPath: string | null;
+}
+export interface AdminUser {
+  id: number; name: string; email: string; isActive: boolean; roles: string[]; createdAt: string;
+}
+
+export function useAdminSettings() {
+  return useQuery({ queryKey: ["admin-settings"], queryFn: async () => (await api.get<AdminSettings>("/admin/settings")).data });
+}
+export function useUpdateSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown>) => (await api.put("/admin/settings", body)).data,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-settings"] }); qc.invalidateQueries({ queryKey: ["settings"] }); },
+  });
+}
+export function useSystemLock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (locked: boolean) => (await api.post("/admin/system-lock", { locked })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-settings"] }),
+  });
+}
+export function useAdminUsers() {
+  return useQuery({ queryKey: ["admin-users"], queryFn: async () => (await api.get<AdminUser[]>("/admin/users")).data });
+}
+export function useAdminRoles() {
+  return useQuery({ queryKey: ["admin-roles"], queryFn: async () => (await api.get<{ id: number; name: string; label: string }[]>("/admin/roles")).data });
+}
+export function useUserMutation() {
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-users"] });
+  return {
+    create: useMutation({ mutationFn: async (b: Record<string, unknown>) => (await api.post("/admin/users", b)).data, onSuccess: invalidate }),
+    update: useMutation({ mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => (await api.put(`/admin/users/${id}`, body)).data, onSuccess: invalidate }),
+  };
+}
+export function useAudits(params: Record<string, unknown>) {
+  return useQuery({ queryKey: ["audits", params], queryFn: async () => (await api.get<{ data: any[]; total: number }>("/admin/audits", { params })).data });
+}
+
 export function useBookingMutation() {
   const qc = useQueryClient();
   const invalidate = (id?: number) => {

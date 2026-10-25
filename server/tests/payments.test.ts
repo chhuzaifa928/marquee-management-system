@@ -49,7 +49,7 @@ describe("Payments — RV posting + status machine", () => {
   beforeEach(base);
 
   it("records a slip, posts a balanced RV (Dr cash, Cr advances), links it", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking();
 
     const res = await sales
@@ -69,7 +69,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("first advance confirms a tentative booking → booked (slot open)", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking();
     const res = await sales.post("/api/payments/slips").send({ bookingId, accountId: cashId, amount: 50000 });
     expect(res.body.bookingStatus).toBe("booked");
@@ -79,7 +79,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("full payment marks the booking paid + locked", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking(); // grand 116000
     await sales.post("/api/payments/slips").send({ bookingId, accountId: cashId, amount: 116000 });
     const b = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
@@ -89,7 +89,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("first-to-pay wins: a second tentative on the same slot stays tentative", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const a = await makeBooking();
     const b = await makeBooking(); // same hall/date/slot
     // A pays first → A booked.
@@ -103,7 +103,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("deleting the slip (super_admin) reverses the RV and reverts status", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const boss = await authAgent(app, { email: "boss@gp.local", roles: ["super_admin"] });
     const bookingId = await makeBooking();
 
@@ -125,7 +125,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("paid → booked revert when a partial payment remains after a drop", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const boss = await authAgent(app, { email: "boss@gp.local", roles: ["super_admin"] });
     const bookingId = await makeBooking(); // grand 116000
 
@@ -144,7 +144,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("allocates gapless slip numbers", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking();
     const r1 = await sales.post("/api/payments/slips").send({ bookingId, accountId: cashId, amount: 1000 });
     const r2 = await sales.post("/api/payments/slips").send({ bookingId, accountId: cashId, amount: 1000 });
@@ -152,7 +152,7 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("forbids a non-super_admin from deleting a slip", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking();
     await sales.post("/api/payments/slips").send({ bookingId, accountId: cashId, amount: 1000 });
     const slip = await prisma.paymentSlip.findFirstOrThrow({ where: { bookingId } });
@@ -161,14 +161,14 @@ describe("Payments — RV posting + status machine", () => {
   });
 
   it("rejects payment into a non-cash/bank account", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking();
     const res = await sales.post("/api/payments/slips").send({ bookingId, accountId: advancesId, amount: 1000 });
     expect(res.status).toBe(400);
   });
 
   it("rejects payment against a cancelled booking", async () => {
-    const sales = await authAgent(app, { email: "sales@gp.local", roles: ["sales"] });
+    const sales = await authAgent(app, { email: "acct@gp.local", roles: ["accounts"] });
     const bookingId = await makeBooking();
     await prisma.booking.update({ where: { id: bookingId }, data: { status: "cancelled" } });
     const res = await sales.post("/api/payments/slips").send({ bookingId, accountId: cashId, amount: 1000 });
