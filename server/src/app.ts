@@ -1,8 +1,10 @@
+import path from "node:path";
+import fs from "node:fs";
 import express, { type Express } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { clientOrigins } from "./env";
+import { clientOrigins, isProd } from "./env";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 import authRoutes from "./modules/auth/auth.routes";
 import healthRoutes from "./modules/health/health.routes";
@@ -56,7 +58,21 @@ export function createApp(): Express {
   app.use("/api/event-costs", eventCostsRoutes);
   app.use("/api/dashboard", dashboardRoutes);
 
-  // 404 + error handling (must be last).
+  // In production, optionally serve the built React SPA from this same server
+  // (single-app deploy, e.g. Hostinger). CLIENT_DIST overrides the default path.
+  if (isProd) {
+    const clientDist =
+      process.env.CLIENT_DIST || path.resolve(process.cwd(), "../client/dist");
+    if (fs.existsSync(path.join(clientDist, "index.html"))) {
+      app.use(express.static(clientDist));
+      // SPA fallback: any non-API GET returns index.html (client-side routing).
+      app.get(/^\/(?!api\/).*/, (_req, res) => {
+        res.sendFile(path.join(clientDist, "index.html"));
+      });
+    }
+  }
+
+  // 404 + error handling (must be last). Unmatched /api routes still get JSON.
   app.use(notFoundHandler);
   app.use(errorHandler);
 
