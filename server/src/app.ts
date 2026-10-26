@@ -61,8 +61,10 @@ export function createApp(): Express {
   // In production, optionally serve the built React SPA from this same server
   // (single-app deploy, e.g. Hostinger). CLIENT_DIST overrides the default path.
   if (isProd) {
+    // Default is resolved from this file (server/dist → repo/client/dist) so it
+    // works regardless of the process working directory; CLIENT_DIST overrides it.
     const clientDist =
-      process.env.CLIENT_DIST || path.resolve(process.cwd(), "../client/dist");
+      process.env.CLIENT_DIST || path.resolve(__dirname, "../../client/dist");
     if (fs.existsSync(path.join(clientDist, "index.html"))) {
       app.use(express.static(clientDist));
       // SPA fallback: any non-API GET returns index.html (client-side routing).
