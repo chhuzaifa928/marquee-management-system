@@ -185,7 +185,12 @@ git-ignored — never commit real secrets.
 ```bash
 npm run db:migrate    # prisma migrate dev — creates tables
 npm run db:seed       # roles, halls, settings, chart of accounts, demo users
+npm run db:seed:demo --workspace server   # optional: rich sample data for a walkthrough
 ```
+
+`db:seed:demo` adds sample customers, bookings (tentative/booked/paid), payments,
+closed events with costing, inventory, assets, decor and vendors. It is additive
+and skips itself if demo bookings already exist.
 
 ### 5. Run
 
