@@ -73,6 +73,11 @@ export const EventCostsService = {
         const qty = d(input.quantity ?? 0);
         if (!gt(qty, 0)) throw AppError.badRequest("quantity must be greater than zero");
         const item = await tx.inventoryItem.findUniqueOrThrow({ where: { id: inventoryItemId } });
+        if (gt(qty, item.qtyOnHand)) {
+          throw AppError.badRequest(
+            `Insufficient stock: ${item.qtyOnHand.toFixed(2)} ${item.unit ?? ""} on hand`,
+          );
+        }
         if (!gt(amount, 0)) amount = qty.times(item.unitCost); // default to qty × unit cost
         const inventoryAcct = await getAccountByCode(ACCOUNT_CODES.inventory, tx);
 

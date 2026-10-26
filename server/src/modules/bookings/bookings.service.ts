@@ -142,6 +142,24 @@ export const BookingsService = {
   async update(id: number, input: Partial<BookingCreateInput>, userId?: number) {
     await assertEditable(id);
 
+    // If a CONFIRMED (booked) booking is being moved to a different hall/date/slot,
+    // re-check availability so it can't land on a slot another booking has taken.
+    if (input.hallId !== undefined || input.eventDate !== undefined || input.slot !== undefined) {
+      const current = await prisma.booking.findUniqueOrThrow({
+        where: { id },
+        select: { status: true, hallId: true, eventDate: true, slot: true },
+      });
+      if (current.status === "booked") {
+        const hallId = input.hallId ?? current.hallId;
+        const date = input.eventDate ?? current.eventDate;
+        const slot = input.slot ?? current.slot;
+        const ok = await AvailabilityService.canConfirm(hallId, date, slot, id);
+        if (!ok) {
+          throw AppError.conflict("That hall/date/slot is already confirmed by another booking.");
+        }
+      }
+    }
+
     const data: Prisma.BookingUpdateInput = {};
     if (input.eventDate !== undefined) data.eventDate = startOfDay(input.eventDate);
     if (input.slot !== undefined) data.slot = input.slot;

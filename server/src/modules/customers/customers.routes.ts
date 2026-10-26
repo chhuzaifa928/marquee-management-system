@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, AppError } from "../../lib/errors";
 import { requireAuth, requireModule, requireRole } from "../../middleware/auth";
+import { intQuery } from "../../lib/http";
 import { CustomersService } from "./customers.service";
 
 const router = Router();
@@ -28,8 +29,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q : undefined;
     const cnic = typeof req.query.cnic === "string" ? req.query.cnic : undefined;
-    const take = req.query.take ? Number(req.query.take) : undefined;
-    const skip = req.query.skip ? Number(req.query.skip) : undefined;
+    const take = intQuery(req.query.take);
+    const skip = intQuery(req.query.skip);
     res.json(await CustomersService.list({ q, cnic, take, skip }));
   }),
 );

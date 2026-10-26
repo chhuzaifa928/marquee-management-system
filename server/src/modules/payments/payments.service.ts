@@ -37,6 +37,11 @@ export const PaymentsService = {
     if (booking.status === "cancelled") {
       throw AppError.badRequest("Cannot record a payment against a cancelled booking");
     }
+    if (booking.eventClosedAt) {
+      throw AppError.conflict(
+        "This event is closed (revenue recognised). Reopen it before recording more payments.",
+      );
+    }
 
     const account = await getAccountById(input.accountId);
     if (account.type !== "cash" && account.type !== "bank") {
@@ -86,8 +91,14 @@ export const PaymentsService = {
   async deleteSlip(slipId: number, userId?: number) {
     const slip = await prisma.paymentSlip.findFirst({
       where: { id: slipId, deletedAt: null },
+      include: { booking: { select: { eventClosedAt: true } } },
     });
     if (!slip) throw AppError.notFound("Payment slip not found");
+    if (slip.booking.eventClosedAt) {
+      throw AppError.conflict(
+        "This event is closed (revenue recognised). Reopen it before deleting its payments.",
+      );
+    }
 
     await prisma.$transaction(async (tx) => {
       await reverseReceipt(tx, slipId, userId);

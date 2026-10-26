@@ -62,6 +62,27 @@ export async function applyPaymentPosting(
   bookingId: number,
   userId?: number | null,
 ) {
+  // Serialize the confirmation decision for this hall+date+slot across concurrent
+  // payment transactions, so two tentatives racing the same slot can't both
+  // confirm (first-to-pay wins). Best-effort named lock; released in `finally`.
+  const slotRow = await tx.booking.findUniqueOrThrow({
+    where: { id: bookingId },
+    select: { hallId: true, eventDate: true, slot: true },
+  });
+  const lockKey = `gp:slot:${slotRow.hallId}:${slotRow.eventDate.toISOString().slice(0, 10)}:${slotRow.slot}`;
+  await tx.$queryRawUnsafe("SELECT GET_LOCK(?, 10) AS l", lockKey);
+  try {
+    return await applyPaymentPostingLocked(tx, bookingId, userId);
+  } finally {
+    await tx.$queryRawUnsafe("SELECT RELEASE_LOCK(?) AS r", lockKey);
+  }
+}
+
+async function applyPaymentPostingLocked(
+  tx: Tx,
+  bookingId: number,
+  userId?: number | null,
+) {
   const totals = await BookingTotals.recompute(bookingId, tx);
   const booking = await tx.booking.findUniqueOrThrow({ where: { id: bookingId } });
   if (booking.status === "cancelled") return; // terminal

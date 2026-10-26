@@ -69,7 +69,12 @@ export const InventoryService = {
     if (input.type !== "adjustment" && !gt(input.quantity, 0)) {
       throw AppError.badRequest("Quantity must be greater than zero for in/out movements");
     }
-    await prisma.inventoryItem.findUniqueOrThrow({ where: { id: input.itemId } });
+    const item = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: input.itemId } });
+    if (input.type === "out" && gt(input.quantity, item.qtyOnHand)) {
+      throw AppError.badRequest(
+        `Insufficient stock: ${item.qtyOnHand.toFixed(2)} ${item.unit ?? ""} on hand`,
+      );
+    }
     await prisma.$transaction(async (tx) => {
       await tx.stockMovement.create({
         data: {

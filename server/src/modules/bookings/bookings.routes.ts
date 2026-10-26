@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler, AppError } from "../../lib/errors";
 import { requireAuth, requireModule, requireRole } from "../../middleware/auth";
+import { intQuery } from "../../lib/http";
 import { sendPdf } from "../../lib/pdf";
 import { getSettings } from "../settings/settings.service";
 import { BookingsService } from "./bookings.service";
@@ -96,13 +97,13 @@ router.get(
     const q = req.query;
     res.json(
       await BookingsService.list({
-        hallId: q.hallId ? Number(q.hallId) : undefined,
+        hallId: intQuery(q.hallId),
         status: typeof q.status === "string" ? q.status : undefined,
-        customerId: q.customerId ? Number(q.customerId) : undefined,
+        customerId: intQuery(q.customerId),
         from: typeof q.from === "string" ? q.from : undefined,
         to: typeof q.to === "string" ? q.to : undefined,
-        take: q.take ? Number(q.take) : undefined,
-        skip: q.skip ? Number(q.skip) : undefined,
+        take: intQuery(q.take),
+        skip: intQuery(q.skip),
       }),
     );
   }),
