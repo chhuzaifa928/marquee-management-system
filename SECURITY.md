@@ -23,6 +23,9 @@ follows the SRS security requirements (§17) and permission matrix (§3/§4).
   **Admin cannot post/edit accounting vouchers**; only **Super Admin** can
   edit/delete Accounts-created entries (payment slips, revenue batches) and lock
   the system; GST rate = Admin/Super; assets/vendors = Admin/Super.
+- Decor can open bookings to add/remove **decor line items** on the bill (billed
+  as `decor`, posted to Decor Sale on close) but cannot create/edit the booking
+  or touch other charge types — enforced by a dedicated `decor-items` guard.
 - Accounts-created financial entries are immutable to their authors: there is no
   voucher edit/delete endpoint; slip deletion and event reopen are `super_admin`
   only.

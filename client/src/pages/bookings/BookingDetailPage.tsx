@@ -20,11 +20,13 @@ export function BookingDetailPage() {
   const { id } = useParams();
   const bookingId = Number(id);
   const { data: b, isLoading } = useBooking(bookingId);
-  const { addCharge, removeCharge, setFoods, cancel } = useBookingMutation();
+  const { addCharge, removeCharge, setFoods, cancel, addDecorItem, removeDecorItem } = useBookingMutation();
   const { modules, user } = useAuth();
+  const roles = user?.roles ?? [];
   const canPay = modules.includes("payments");
-  const canClose =
-    (user?.roles.includes("accounts") || user?.roles.includes("super_admin")) ?? false;
+  const canClose = roles.includes("accounts") || roles.includes("super_admin");
+  const canCharges = roles.some((r) => ["sales", "admin", "super_admin"].includes(r));
+  const canDecor = roles.some((r) => ["decor", "sales", "admin", "super_admin"].includes(r));
   const closeEvent = useCloseEvent();
 
   if (isLoading) return <p className="text-pearl-500">Loading…</p>;
@@ -74,7 +76,7 @@ export function BookingDetailPage() {
                       <td className="text-right">{c.quantity} × {money(c.unitPrice)}</td>
                       <td className="text-right font-medium">{money(c.amount)}</td>
                       <td className="w-8 text-right">
-                        {editable && (
+                        {editable && canCharges && (
                           <button onClick={() => removeCharge.mutate({ id: b.id, chargeId: c.id })} className="text-red-500 hover:text-red-700">✕</button>
                         )}
                       </td>
@@ -85,8 +87,38 @@ export function BookingDetailPage() {
             ) : (
               <p className="text-sm text-pearl-400">No charges.</p>
             )}
-            {editable && <AddChargeInline bookingId={b.id} onAdd={(body) => addCharge.mutate({ id: b.id, body })} />}
+            {editable && canCharges && <AddChargeInline bookingId={b.id} onAdd={(body) => addCharge.mutate({ id: b.id, body })} />}
           </Card>
+
+          {canDecor && (
+            <Card>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-semibold text-pearl-800">Decor items</h2>
+                <span className="text-xs text-pearl-400">added by the decor team · billed as Decor</span>
+              </div>
+              {b.charges.filter((c) => c.chargeType === "decor").length ? (
+                <table className="w-full text-sm">
+                  <tbody>
+                    {b.charges.filter((c) => c.chargeType === "decor").map((c) => (
+                      <tr key={c.id} className="border-b border-pearl-50">
+                        <td className="py-1.5">{c.description || "Decor"}</td>
+                        <td className="text-right">{c.quantity} × {money(c.unitPrice)}</td>
+                        <td className="text-right font-medium">{money(c.amount)}</td>
+                        <td className="w-8 text-right">
+                          {editable && (
+                            <button onClick={() => removeDecorItem.mutate({ id: b.id, chargeId: c.id })} className="text-red-500 hover:text-red-700">✕</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-pearl-400">No decor items yet.</p>
+              )}
+              {editable && <AddDecorInline onAdd={(body) => addDecorItem.mutate({ id: b.id, body })} />}
+            </Card>
+          )}
 
           <Card>
             <h2 className="mb-3 font-semibold text-pearl-800">Menu</h2>
@@ -182,6 +214,35 @@ function AddChargeInline({ onAdd }: { bookingId: number; onAdd: (body: Record<st
         type="button"
         className="col-span-2"
         onClick={() => onAdd({ chargeType, description: description || null, quantity: Number(quantity), unitPrice: Number(unitPrice) })}
+      >
+        Add
+      </Button>
+    </div>
+  );
+}
+
+const DECOR_PRESETS = ["Stage Decoration", "Fireworks", "Dance Floor", "Lighting", "Flower Arrangement", "Entrance Decor", "Other"];
+
+function AddDecorInline({ onAdd }: { onAdd: (body: Record<string, unknown>) => void }) {
+  const [preset, setPreset] = useState(DECOR_PRESETS[0]!);
+  const [custom, setCustom] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [unitPrice, setUnitPrice] = useState("");
+  const item = preset === "Other" ? custom : preset;
+  return (
+    <div className="mt-3 grid grid-cols-12 gap-2 border-t border-pearl-100 pt-3">
+      <select className={inputClass + " col-span-3"} value={preset} onChange={(e) => setPreset(e.target.value)}>
+        {DECOR_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+      </select>
+      {preset === "Other"
+        ? <input className={inputClass + " col-span-3"} placeholder="Item name" value={custom} onChange={(e) => setCustom(e.target.value)} />
+        : <div className="col-span-3" />}
+      <input className={inputClass + " col-span-2"} type="number" min={1} placeholder="Qty" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+      <input className={inputClass + " col-span-2"} type="number" min={0} step="0.01" placeholder="Unit price" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+      <Button
+        type="button"
+        className="col-span-2"
+        onClick={() => { if (item && unitPrice) { onAdd({ item, quantity: Number(quantity), unitPrice: Number(unitPrice) }); setCustom(""); setUnitPrice(""); setQuantity("1"); } }}
       >
         Add
       </Button>

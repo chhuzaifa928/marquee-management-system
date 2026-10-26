@@ -16,6 +16,7 @@ const router = Router();
 router.use(requireAuth, requireModule("bookings"));
 
 const writeGuard = requireRole("sales", "admin"); // + super_admin via bypass
+const decorGuard = requireRole("decor", "sales", "admin"); // decor items on the bill
 
 const slotEnum = z.enum(["lunch", "dinner"]);
 const chargeTypeEnum = z.enum([
@@ -206,6 +207,32 @@ router.put(
   asyncHandler(async (req, res) => {
     const body = z.object({ foods: z.array(FoodSchema) }).parse(req.body);
     res.json(await BookingsService.setFoods(idParam(req.params.id), body.foods, req.user!.id));
+  }),
+);
+
+// Decor items on the bill — addable by the decor team (and sales/admin/super).
+const DecorItemSchema = z.object({
+  item: z.string().min(1).max(200),
+  quantity: z.coerce.number().positive().optional(),
+  unitPrice: z.coerce.number().nonnegative(),
+});
+
+router.post(
+  "/:id/decor-items",
+  decorGuard,
+  asyncHandler(async (req, res) => {
+    const body = DecorItemSchema.parse(req.body);
+    res.status(201).json(await BookingsService.addDecorItem(idParam(req.params.id), body, req.user!.id));
+  }),
+);
+
+router.delete(
+  "/:id/decor-items/:chargeId",
+  decorGuard,
+  asyncHandler(async (req, res) => {
+    res.json(
+      await BookingsService.removeDecorItem(idParam(req.params.id), idParam(req.params.chargeId), req.user!.id),
+    );
   }),
 );
 

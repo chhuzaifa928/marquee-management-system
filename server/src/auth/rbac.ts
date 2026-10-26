@@ -71,7 +71,9 @@ export const ROLE_MODULES: Record<Exclude<RoleName, "super_admin">, ModuleKey[]>
   ],
   // Inventory manages only the inventory register (assets are Admin/Super only).
   inventory: ["dashboard", "inventory"],
-  decor: ["dashboard", "decor"],
+  // Decor manages its register AND can open bookings to add decor items to the
+  // bill (decor charges only — not create/edit the booking or other charges).
+  decor: ["dashboard", "decor", "bookings"],
 };
 
 export function isSuperAdmin(roles: string[]): boolean {
@@ -144,4 +146,9 @@ export function canManageAssetsVendors(roles: string[]): boolean {
 /** Manage users: admin (+ super). */
 export function canManageUsers(roles: string[]): boolean {
   return hasAnyRole(roles, ["admin"]);
+}
+
+/** Add/remove decor items on a booking's bill: decor, sales, admin (+ super). */
+export function canManageDecorItems(roles: string[]): boolean {
+  return hasAnyRole(roles, ["decor", "sales", "admin"]);
 }

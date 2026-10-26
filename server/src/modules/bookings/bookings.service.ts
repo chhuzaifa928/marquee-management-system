@@ -260,6 +260,37 @@ export const BookingsService = {
     return this.getById(bookingId);
   },
 
+  // ── Decor items (added by the decor team; billed as `decor` charges) ───────
+  /** Add a decor line item (fireworks, dance floor, stage decoration, …) to the bill. */
+  async addDecorItem(
+    bookingId: number,
+    input: { item: string; quantity?: number | string; unitPrice: number | string },
+    userId?: number,
+  ) {
+    return this.addCharge(
+      bookingId,
+      {
+        chargeType: "decor",
+        description: input.item,
+        quantity: input.quantity ?? 1,
+        unitPrice: input.unitPrice,
+      },
+      userId,
+    );
+  },
+
+  /** Remove a decor item — only charges of type `decor` can be removed this way. */
+  async removeDecorItem(bookingId: number, chargeId: number, userId?: number) {
+    const charge = await prisma.bookingCharge.findFirst({
+      where: { id: chargeId, bookingId, deletedAt: null },
+    });
+    if (!charge) throw AppError.notFound("Decor item not found");
+    if (charge.chargeType !== "decor") {
+      throw AppError.forbidden("Only decor items can be removed here");
+    }
+    return this.removeCharge(bookingId, chargeId, userId);
+  },
+
   // ── Foods (menu lines) ───────────────────────────────────────────────────
   /** Replace the whole food list for a booking (simplest to keep ordering sane). */
   async setFoods(bookingId: number, foods: FoodInput[], userId?: number) {

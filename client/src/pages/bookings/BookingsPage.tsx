@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useBookings, useHalls } from "../../api/hooks";
+import { useAuth } from "../../auth/AuthContext";
 import { fmtDate, money } from "../../lib/format";
 import { Button, Card, inputClass, PageHeader, StatusBadge } from "../../components/ui";
 
 const STATUSES = ["", "tentative", "booked", "paid", "cancelled"];
 
 export function BookingsPage() {
+  const { user } = useAuth();
+  const canCreate = user?.roles.some((r) => ["sales", "admin", "super_admin"].includes(r)) ?? false;
   const [hallId, setHallId] = useState<string>("");
   const [status, setStatus] = useState<string>("");
   const { data: halls } = useHalls();
@@ -23,7 +26,7 @@ export function BookingsPage() {
         actions={
           <div className="flex gap-2">
             <Link to="/bookings/calendar"><Button variant="ghost">Calendar</Button></Link>
-            <Link to="/bookings/new"><Button>New booking</Button></Link>
+            {canCreate && <Link to="/bookings/new"><Button>New booking</Button></Link>}
           </div>
         }
       />

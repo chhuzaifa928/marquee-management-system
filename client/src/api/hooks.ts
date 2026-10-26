@@ -400,5 +400,15 @@ export function useBookingMutation() {
       mutationFn: async (id: number) => (await api.post<Booking>(`/bookings/${id}/cancel`)).data,
       onSuccess: (_d, id) => invalidate(id),
     }),
+    addDecorItem: useMutation({
+      mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) =>
+        (await api.post<Booking>(`/bookings/${id}/decor-items`, body)).data,
+      onSuccess: (_d, v) => invalidate(v.id),
+    }),
+    removeDecorItem: useMutation({
+      mutationFn: async ({ id, chargeId }: { id: number; chargeId: number }) =>
+        (await api.delete<Booking>(`/bookings/${id}/decor-items/${chargeId}`)).data,
+      onSuccess: (_d, v) => invalidate(v.id),
+    }),
   };
 }
