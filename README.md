@@ -4,6 +4,8 @@
 
 <p><strong>Bookings, payments, double-entry accounting, inventory and operations — one system for a wedding &amp; banquet marquee business.</strong></p>
 
+<p><a href="https://github.com/chhuzaifa928/marquee-management-system/actions/workflows/ci.yml"><img src="https://github.com/chhuzaifa928/marquee-management-system/actions/workflows/ci.yml/badge.svg" alt="CI"></a></p>
+
 <p>
   <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-%E2%89%A520-339933?logo=node.js&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white">
